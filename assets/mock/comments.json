@@ -1,0 +1,82 @@
+[
+  {
+    "id": "1",
+    "catch_id": "1",
+    "user_id": "2",
+    "user_name": "Siti Aminah",
+    "user_username": "siti_pemancing",
+    "user_avatar": "https://ui-avatars.com/api/?name=Siti+Aminah&background=2D6A4F&color=fff&size=200",
+    "content": "Gila keren banget GT nya! 🔥 Berapa lama fight nya?",
+    "created_at": "2025-05-04T07:00:00Z"
+  },
+  {
+    "id": "2",
+    "catch_id": "1",
+    "user_id": "1",
+    "user_name": "Budi Santoso",
+    "user_username": "budi_mancing",
+    "user_avatar": "https://ui-avatars.com/api/?name=Budi+Santoso&background=0077B6&color=fff&size=200",
+    "content": "Mantap bro! Spot Karimunjawa emang the best 👏",
+    "created_at": "2025-05-04T07:15:00Z"
+  },
+  {
+    "id": "3",
+    "catch_id": "1",
+    "user_id": "3",
+    "user_name": "Ahmad Fauzi",
+    "user_username": "ahmad_fishing",
+    "user_avatar": "https://ui-avatars.com/api/?name=Ahmad+Fauzi&background=00B4D8&color=fff&size=200",
+    "content": "Popper merek apa bro? Pengen coba juga!",
+    "created_at": "2025-05-04T08:00:00Z"
+  },
+  {
+    "id": "4",
+    "catch_id": "2",
+    "user_id": "4",
+    "user_name": "Dewi Kartika",
+    "user_username": "dewi_angler",
+    "user_avatar": "https://ui-avatars.com/api/?name=Dewi+Kartika&background=52B788&color=fff&size=200",
+    "content": "Gabus segede itu dari Cisadane? Keren mbak! 😍",
+    "created_at": "2025-05-03T16:00:00Z"
+  },
+  {
+    "id": "5",
+    "catch_id": "3",
+    "user_id": "7",
+    "user_name": "Hendra Wijaya",
+    "user_username": "hendra_lure",
+    "user_avatar": "https://ui-avatars.com/api/?name=Hendra+Wijaya&background=0077B6&color=fff&size=200",
+    "content": "Kakap merah emang raja ikan laut! Spot rahasianya di mana bang? 🤫",
+    "created_at": "2025-05-03T10:00:00Z"
+  },
+  {
+    "id": "6",
+    "catch_id": "3",
+    "user_id": "5",
+    "user_name": "Riko Pratama",
+    "user_username": "riko_strike",
+    "user_avatar": "https://ui-avatars.com/api/?name=Riko+Pratama&background=023E8A&color=fff&size=200",
+    "content": "Wah hampir 6 kg! Pasti seru fight-nya 💪",
+    "created_at": "2025-05-03T11:30:00Z"
+  },
+  {
+    "id": "7",
+    "catch_id": "6",
+    "user_id": "8",
+    "user_name": "Putri Handayani",
+    "user_username": "putri_mancing",
+    "user_avatar": "https://ui-avatars.com/api/?name=Putri+Handayani&background=2D6A4F&color=fff&size=200",
+    "content": "Mancing malam emang beda sensasinya ya mbak! 🌙",
+    "created_at": "2025-05-02T06:00:00Z"
+  },
+  {
+    "id": "8",
+    "catch_id": "9",
+    "user_id": "1",
+    "user_name": "Budi Santoso",
+    "user_username": "budi_mancing",
+    "user_avatar": "https://ui-avatars.com/api/?name=Budi+Santoso&background=0077B6&color=fff&size=200",
+    "content": "New PB! Selamat bro Riko! Kapan-kapan ajak jigging bareng 🎣",
+    "created_at": "2025-04-29T08:00:00Z"
+  }
+]
