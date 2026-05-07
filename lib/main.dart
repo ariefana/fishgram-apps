@@ -9,9 +9,15 @@ import 'providers/feed_provider.dart';
 import 'providers/profile_provider.dart';
 import 'providers/search_provider.dart';
 import 'providers/notification_provider.dart';
+import 'firebase_options.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,  
+  );
 
   // Initialize services
   final authService = AuthService();

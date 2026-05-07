@@ -35,7 +35,10 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
             return ShimmerLoading.userList(count: 4);
           }
           if (pp.errorMessage != null) {
-            return ErrorState(message: pp.errorMessage!, onRetry: () => pp.loadUserProfile(widget.userId));
+            return ErrorState(
+              message: pp.errorMessage!,
+              onRetry: () => pp.loadUserProfile(widget.userId),
+            );
           }
           final user = pp.viewedUser;
           if (user == null) {
@@ -47,16 +50,30 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 20),
-                AvatarWidget(imageUrl: user.avatar, name: user.name, radius: 50),
+                AvatarWidget(
+                  imageUrl: user.avatar,
+                  name: user.name,
+                  radius: 50,
+                ),
                 const SizedBox(height: 14),
-                Text(user.name, style: Theme.of(context).textTheme.headlineSmall),
+                Text(
+                  user.name,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
                 const SizedBox(height: 4),
-                Text('@${user.username}', style: Theme.of(context).textTheme.bodySmall),
+                Text(
+                  '@${user.username}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
                 if (user.bio != null && user.bio!.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 40),
-                    child: Text(user.bio!, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
+                    child: Text(
+                      user.bio!,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 20),
@@ -64,9 +81,21 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _statCol(context, user.catchesCount.toString(), 'Tangkapan'),
-                    _statCol(context, user.followersCount.toString(), 'Pengikut'),
-                    _statCol(context, user.followingCount.toString(), 'Mengikuti'),
+                    _statCol(
+                      context,
+                      user.catchesCount.toString(),
+                      'Tangkapan',
+                    ),
+                    _statCol(
+                      context,
+                      user.followersCount.toString(),
+                      'Pengikut',
+                    ),
+                    _statCol(
+                      context,
+                      user.followingCount.toString(),
+                      'Mengikuti',
+                    ),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -77,13 +106,22 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
                     children: [
                       Expanded(
                         child: user.isFollowing
-                            ? OutlinedButton(onPressed: () => pp.toggleFollow(), child: const Text('Mengikuti'))
-                            : ElevatedButton(onPressed: () => pp.toggleFollow(), child: const Text('Ikuti')),
+                            ? OutlinedButton(
+                                onPressed: () => pp.toggleFollow(),
+                                child: const Text('Mengikuti'),
+                              )
+                            : ElevatedButton(
+                                onPressed: () => pp.toggleFollow(),
+                                child: const Text('Ikuti'),
+                              ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () {},
+                          onPressed: () => _showSnack(
+                            context,
+                            '🙋🙋🙋 Ayo ayo ayo ayo.......',
+                          ),
                           icon: const Icon(Icons.phishing, size: 18),
                           label: const Text('Ajak Mancing'),
                         ),
@@ -97,21 +135,39 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
                 if (pp.userCatches.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(40),
-                    child: Column(children: [
-                      Icon(Icons.phishing, size: 48, color: AppTheme.textHint),
-                      const SizedBox(height: 12),
-                      Text('Belum ada tangkapan', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary)),
-                    ]),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.phishing,
+                          size: 48,
+                          color: AppTheme.textHint,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Belum ada tangkapan',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppTheme.textSecondary),
+                        ),
+                      ],
+                    ),
                   )
                 else
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(2),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 2,
+                          mainAxisSpacing: 2,
+                        ),
                     itemCount: pp.userCatches.length,
                     itemBuilder: (context, index) {
-                      return CachedNetworkImage(imageUrl: pp.userCatches[index].photoUrl, fit: BoxFit.cover);
+                      return CachedNetworkImage(
+                        imageUrl: pp.userCatches[index].photoUrl,
+                        fit: BoxFit.cover,
+                      );
                     },
                   ),
               ],
@@ -122,10 +178,19 @@ class _OtherProfileScreenState extends State<OtherProfileScreen> {
     );
   }
 
+  void _showSnack(BuildContext context, String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
   Widget _statCol(BuildContext context, String count, String label) {
     return Column(
       children: [
-        Text(count, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+        Text(
+          count,
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 2),
         Text(label, style: Theme.of(context).textTheme.bodySmall),
       ],

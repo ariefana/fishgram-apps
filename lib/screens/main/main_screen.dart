@@ -66,8 +66,8 @@ class _MainScreenState extends State<MainScreen> {
               label: 'Cari',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.add_circle_outline, size: 30),
-              activeIcon: Icon(Icons.add_circle, size: 32),
+              icon: Icon(Icons.add_circle_outline, size: 20),
+              activeIcon: Icon(Icons.add_circle, size: 20),
               label: '',
             ),
             BottomNavigationBarItem(

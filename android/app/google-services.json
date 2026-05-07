@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "631370330721",
+    "project_id": "fishgram-apps",
+    "storage_bucket": "fishgram-apps.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:631370330721:android:fefa2a94694a453fad7020",
+        "android_client_info": {
+          "package_name": "com.example.fishgram_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "631370330721-6vf96lv80aoffovuqhpc5behucduclij.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.fishgram_app",
+            "certificate_hash": "237c98fd91395acd7047211d099f911808a18173"
+          }
+        },
+        {
+          "client_id": "631370330721-k13ffuh0nej3smnobphvhstusfe09pru.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDTSN4I8hU-aqks1Y3wy-v722AdBxYY9oI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "631370330721-k13ffuh0nej3smnobphvhstusfe09pru.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "631370330721-8iat5okgdasua62oc7ul54j132o3b1mr.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fishgramApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

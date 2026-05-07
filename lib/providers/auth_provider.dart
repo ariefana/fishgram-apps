@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
@@ -6,7 +8,7 @@ import '../services/storage_service.dart';
 /// Authentication state.
 enum AuthState { initial, loading, authenticated, unauthenticated, onboarding }
 
-/// Provider managing authentication state.
+/// Provider managing authentication state with Firebase Auth + Google Sign-In.
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService;
   final StorageService _storageService;
@@ -15,6 +17,7 @@ class AuthProvider extends ChangeNotifier {
   UserModel? _user;
   String? _errorMessage;
   String? _successMessage;
+  StreamSubscription<User?>? _authSubscription;
 
   AuthProvider({
     required AuthService authService,
@@ -29,73 +32,83 @@ class AuthProvider extends ChangeNotifier {
   String? get successMessage => _successMessage;
   bool get isAuthenticated => _state == AuthState.authenticated;
 
+  /// Get the current Firebase ID token for API calls.
+  Future<String?> getIdToken({bool forceRefresh = false}) {
+    return _authService.getIdToken(forceRefresh: forceRefresh);
+  }
+
   // ── Initialize ────────────────────────────────────────────────────────
+  /// Check Firebase auth state and determine initial screen.
+  ///
+  /// - If user is signed in and onboarding complete → authenticated
+  /// - If user is signed in but onboarding not complete → onboarding
+  /// - If no user → unauthenticated
   Future<void> initialize() async {
     _state = AuthState.loading;
     notifyListeners();
 
-    final isLoggedIn = await _storageService.isLoggedIn();
-    if (isLoggedIn) {
-      // In real app, verify token with Firebase and refresh if needed
-      _user = _authService.currentUser;
-      if (_user != null) {
-        _state = AuthState.authenticated;
-      } else {
-        // Token exists but no user — re-login needed
+    // Listen to auth state changes for auto sign-out / token expiry
+    _authSubscription?.cancel();
+    _authSubscription = _authService.authStateChanges.listen((firebaseUser) {
+      if (firebaseUser == null && _state == AuthState.authenticated) {
+        // User signed out externally
+        _user = null;
         _state = AuthState.unauthenticated;
+        notifyListeners();
       }
+    });
+
+    final firebaseUser = _authService.firebaseUser;
+    if (firebaseUser != null) {
+      // User is signed in to Firebase
+      _user = _authService.currentUser;
+
+      // Save token for API use
+      final token = await _authService.getIdToken();
+      if (token != null) {
+        await _storageService.saveToken(token);
+      }
+      await _storageService.saveUserId(firebaseUser.uid);
+      await _storageService.setLoggedIn(true);
+
+      // Check if onboarding was completed
+      final onboardingDone = await _storageService.isOnboardingComplete();
+      _state = onboardingDone ? AuthState.authenticated : AuthState.onboarding;
     } else {
       _state = AuthState.unauthenticated;
     }
     notifyListeners();
   }
 
-  // ── Login ─────────────────────────────────────────────────────────────
-  Future<bool> login(String email, String password) async {
+  // ── Google Sign-In ────────────────────────────────────────────────────
+  /// Sign in with Google. Returns true on success.
+  Future<bool> signInWithGoogle() async {
     _state = AuthState.loading;
     _errorMessage = null;
     notifyListeners();
 
-    final result = await _authService.login(email, password);
+    final result = await _authService.signInWithGoogle();
 
     if (result.isSuccess) {
       _user = result.user;
-      await _storageService.saveToken(result.token!);
-      await _storageService.saveUserId(result.user!.id);
+
+      // Persist
+      if (result.token != null) {
+        await _storageService.saveToken(result.token!);
+      }
+      if (result.user != null) {
+        await _storageService.saveUserId(result.user!.id);
+      }
       await _storageService.setLoggedIn(true);
 
-      final onboardingDone = await _storageService.isOnboardingComplete();
-      _state = onboardingDone ? AuthState.authenticated : AuthState.onboarding;
-      notifyListeners();
-      return true;
-    }
-
-    _errorMessage = result.errorMessage;
-    _state = AuthState.unauthenticated;
-    notifyListeners();
-    return false;
-  }
-
-  // ── Register ──────────────────────────────────────────────────────────
-  Future<bool> register(
-    String name,
-    String email,
-    String password,
-    String confirmPassword,
-  ) async {
-    _state = AuthState.loading;
-    _errorMessage = null;
-    notifyListeners();
-
-    final result =
-        await _authService.register(name, email, password, confirmPassword);
-
-    if (result.isSuccess) {
-      _user = result.user;
-      await _storageService.saveToken(result.token!);
-      await _storageService.saveUserId(result.user!.id);
-      await _storageService.setLoggedIn(true);
-      _state = AuthState.onboarding;
+      // New user → show onboarding, returning user → go to main
+      if (result.isNewUser) {
+        _state = AuthState.onboarding;
+      } else {
+        final onboardingDone = await _storageService.isOnboardingComplete();
+        _state =
+            onboardingDone ? AuthState.authenticated : AuthState.onboarding;
+      }
       notifyListeners();
       return true;
     }
@@ -134,6 +147,7 @@ class AuthProvider extends ChangeNotifier {
       fishingType: fishingType,
       location: location,
     );
+    // Refresh user model from Firebase
     _user = _authService.currentUser;
     await _storageService.setOnboardingComplete(true);
     _state = AuthState.authenticated;
@@ -153,16 +167,18 @@ class AuthProvider extends ChangeNotifier {
       bio: bio,
       avatar: avatar,
     );
+    // Refresh user model from Firebase
     _user = _authService.currentUser;
     notifyListeners();
   }
 
   // ── Logout ────────────────────────────────────────────────────────────
+  /// Sign out from Google + Firebase, clear local storage.
   Future<void> logout() async {
     _state = AuthState.loading;
     notifyListeners();
 
-    await _authService.logout();
+    await _authService.signOut();
     await _storageService.clearAll();
     _user = null;
     _state = AuthState.unauthenticated;
@@ -173,5 +189,11 @@ class AuthProvider extends ChangeNotifier {
   void clearMessages() {
     _errorMessage = null;
     _successMessage = null;
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 }

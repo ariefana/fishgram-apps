@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../config/theme.dart';
 import '../models/catch_model.dart';
 import 'avatar_widget.dart';
+import 'package:ionicons/ionicons.dart';
 
 /// Card widget displaying a fishing catch post in the feed.
 class CatchCard extends StatelessWidget {
@@ -66,17 +67,17 @@ class CatchCard extends StatelessWidget {
                   Text(
                     catchItem.userName,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
-                        ),
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
                   ),
                   if (catchItem.location != null)
                     Text(
                       catchItem.location!,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontSize: 11,
-                            color: AppTheme.textHint,
-                          ),
+                        fontSize: 11,
+                        color: AppTheme.textHint,
+                      ),
                     ),
                 ],
               ),
@@ -91,10 +92,10 @@ class CatchCard extends StatelessWidget {
             child: Text(
               _timeAgo(catchItem.createdAt),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontSize: 10,
-                    color: AppTheme.primaryBlue,
-                    fontWeight: FontWeight.w500,
-                  ),
+                fontSize: 10,
+                color: AppTheme.primaryBlue,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -114,11 +115,17 @@ class CatchCard extends StatelessWidget {
             fit: BoxFit.cover,
             placeholder: (context, url) => Container(
               color: Colors.grey.shade200,
-              child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              child: const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
             ),
             errorWidget: (context, url, error) => Container(
               color: Colors.grey.shade200,
-              child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+              child: const Icon(
+                Icons.broken_image,
+                size: 48,
+                color: Colors.grey,
+              ),
             ),
           ),
         ),
@@ -139,15 +146,19 @@ class CatchCard extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           _actionBtn(
-            Icons.chat_bubble_outline,
+            Ionicons.chatbubble_outline,
             AppTheme.textSecondary,
-            catchItem.commentsCount > 0 ? catchItem.commentsCount.toString() : null,
+            catchItem.commentsCount > 0
+                ? catchItem.commentsCount.toString()
+                : null,
             onComment,
           ),
           const Spacer(),
           _actionBtn(
             catchItem.isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-            catchItem.isBookmarked ? AppTheme.primaryBlue : AppTheme.textSecondary,
+            catchItem.isBookmarked
+                ? AppTheme.primaryBlue
+                : AppTheme.textSecondary,
             null,
             onBookmark,
           ),
@@ -156,7 +167,12 @@ class CatchCard extends StatelessWidget {
     );
   }
 
-  Widget _actionBtn(IconData icon, Color color, String? label, VoidCallback? onTap) {
+  Widget _actionBtn(
+    IconData icon,
+    Color color,
+    String? label,
+    VoidCallback? onTap,
+  ) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
@@ -168,7 +184,14 @@ class CatchCard extends StatelessWidget {
             Icon(icon, size: 22, color: color),
             if (label != null) ...[
               const SizedBox(width: 4),
-              Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: color)),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: color,
+                ),
+              ),
             ],
           ],
         ),
@@ -193,7 +216,12 @@ class CatchCard extends StatelessWidget {
           ),
           if (catchItem.caption != null && catchItem.caption!.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(catchItem.caption!, style: Theme.of(context).textTheme.bodyMedium, maxLines: 3, overflow: TextOverflow.ellipsis),
+            Text(
+              catchItem.caption!,
+              style: Theme.of(context).textTheme.bodyMedium,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ],
       ),
@@ -212,7 +240,14 @@ class CatchCard extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: AppTheme.accentGreen),
           const SizedBox(width: 4),
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppTheme.accentGreen)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.accentGreen,
+            ),
+          ),
         ],
       ),
     );

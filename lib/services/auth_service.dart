@@ -1,102 +1,107 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 
-/// Mock authentication service.
+/// Authentication service using Firebase Auth + Google Sign-In.
 ///
-/// Simulates Firebase Auth behavior without requiring actual Firebase setup.
-/// Replace with real Firebase Auth integration when ready.
+/// Provides Google Sign-In, sign-out, token management, and auth state streams.
 class AuthService {
-  UserModel? _currentUser;
-  String? _token;
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-  bool get isLoggedIn => _currentUser != null;
-  UserModel? get currentUser => _currentUser;
-  String? get token => _token;
+  // ── Current State ─────────────────────────────────────────────────────
+  /// The currently signed-in Firebase user, or null.
+  User? get firebaseUser => _firebaseAuth.currentUser;
 
-  /// Simulate login with email & password.
-  Future<AuthResult> login(String email, String password) async {
-    await Future.delayed(const Duration(milliseconds: 800));
+  /// Whether a user is currently signed in.
+  bool get isLoggedIn => firebaseUser != null;
 
-    // Mock validation
-    if (email.isEmpty || password.isEmpty) {
-      return AuthResult.failure('Email dan password tidak boleh kosong');
-    }
+  /// Stream of auth state changes (sign-in / sign-out).
+  Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
 
-    if (password.length < 6) {
-      return AuthResult.failure('Password minimal 6 karakter');
-    }
+  /// Stream of ID token changes (token refresh, sign-in, sign-out).
+  Stream<User?> get idTokenChanges => _firebaseAuth.idTokenChanges();
 
-    // Mock successful login — return a default user
-    _currentUser = UserModel(
-      id: '1',
-      name: 'Budi Santoso',
-      username: 'budi_mancing',
-      email: email,
-      avatar:
-          'https://ui-avatars.com/api/?name=Budi+Santoso&background=0077B6&color=fff&size=200',
-      bio: 'Pemancing profesional 🎣 | Spesialis ikan laut dalam | Jakarta',
-      fishingType: 'Laut',
-      location: 'Jakarta',
-      followersCount: 1250,
-      followingCount: 340,
-      catchesCount: 87,
-      createdAt: DateTime(2024, 1, 15),
-    );
-    _token = 'mock_firebase_token_${DateTime.now().millisecondsSinceEpoch}';
-
-    return AuthResult.success(_currentUser!, _token!);
+  /// Build a [UserModel] from the current Firebase user.
+  UserModel? get currentUser {
+    final user = firebaseUser;
+    if (user == null) return null;
+    return _userModelFromFirebase(user);
   }
 
-  /// Simulate registration.
-  Future<AuthResult> register(
-    String name,
-    String email,
-    String password,
-    String confirmPassword,
-  ) async {
-    await Future.delayed(const Duration(milliseconds: 1000));
+  // ── Google Sign-In ────────────────────────────────────────────────────
+  /// Sign in with Google and return an [AuthResult].
+  ///
+  /// Flow:
+  /// 1. Show Google account picker
+  /// 2. Get Google auth tokens
+  /// 3. Create Firebase credential
+  /// 4. Sign in to Firebase with credential
+  /// 5. Return user data + Firebase ID token
+  Future<AuthResult> signInWithGoogle() async {
+    try {
+      // 1. Trigger Google Sign-In flow
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        // User cancelled the sign-in
+        return AuthResult.failure('Login dibatalkan');
+      }
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      return AuthResult.failure('Semua field harus diisi');
-    }
-    if (password != confirmPassword) {
-      return AuthResult.failure('Password dan konfirmasi tidak cocok');
-    }
-    if (password.length < 6) {
-      return AuthResult.failure('Password minimal 6 karakter');
-    }
-    if (!email.contains('@')) {
-      return AuthResult.failure('Format email tidak valid');
-    }
+      // 2. Obtain auth details
+      final googleAuth = await googleUser.authentication;
 
-    // Create new mock user
-    final username = name.toLowerCase().replaceAll(' ', '_');
-    _currentUser = UserModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: name,
-      username: username,
-      email: email,
-      avatar:
-          'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=0077B6&color=fff&size=200',
-      createdAt: DateTime.now(),
-    );
-    _token = 'mock_firebase_token_${DateTime.now().millisecondsSinceEpoch}';
+      // 3. Create Firebase credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
 
-    return AuthResult.success(_currentUser!, _token!);
+      // 4. Sign in to Firebase
+      final userCredential =
+          await _firebaseAuth.signInWithCredential(credential);
+      final user = userCredential.user;
+
+      if (user == null) {
+        return AuthResult.failure('Gagal mendapatkan data pengguna');
+      }
+
+      // 5. Get Firebase ID token
+      final token = await user.getIdToken();
+
+      return AuthResult.success(
+        _userModelFromFirebase(user),
+        token,
+        isNewUser: userCredential.additionalUserInfo?.isNewUser ?? false,
+      );
+    } on FirebaseAuthException catch (e) {
+      return AuthResult.failure(_firebaseErrorMessage(e.code));
+    } catch (e) {
+      return AuthResult.failure('Terjadi kesalahan: ${e.toString()}');
+    }
   }
 
-  /// Simulate forgot password.
-  Future<AuthResult> forgotPassword(String email) async {
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    if (email.isEmpty || !email.contains('@')) {
-      return AuthResult.failure('Masukkan email yang valid');
-    }
-
-    return AuthResult.success(null, null,
-        message: 'Link reset password telah dikirim ke $email');
+  // ── Token Management ──────────────────────────────────────────────────
+  /// Get the current Firebase ID token.
+  ///
+  /// If [forceRefresh] is true, the token is refreshed even if not expired.
+  /// Returns null if no user is signed in.
+  Future<String?> getIdToken({bool forceRefresh = false}) async {
+    final user = firebaseUser;
+    if (user == null) return null;
+    return await user.getIdToken(forceRefresh);
   }
 
-  /// Update the current user profile.
+  // ── Sign Out ──────────────────────────────────────────────────────────
+  /// Sign out from both Google and Firebase.
+  ///
+  /// Clears Google session so account picker shows on next sign-in.
+  Future<void> signOut() async {
+    await _googleSignIn.signOut();
+    await _firebaseAuth.signOut();
+  }
+
+  // ── Update Profile ────────────────────────────────────────────────────
+  /// Update display name and/or photo URL on the Firebase user.
   Future<void> updateProfile({
     String? name,
     String? username,
@@ -105,24 +110,82 @@ class AuthService {
     String? fishingType,
     String? location,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    if (_currentUser != null) {
-      _currentUser = _currentUser!.copyWith(
-        name: name,
-        username: username,
-        bio: bio,
-        avatar: avatar,
-        fishingType: fishingType,
-        location: location,
-      );
+    final user = firebaseUser;
+    if (user == null) return;
+
+    // Firebase only supports displayName and photoURL directly
+    if (name != null || avatar != null) {
+      await user.updateDisplayName(name ?? user.displayName);
+      if (avatar != null) {
+        await user.updatePhotoURL(avatar);
+      }
+      // Reload to pick up changes
+      await user.reload();
+    }
+    // Other fields (username, bio, fishingType, location) would be
+    // saved to the Laravel backend in the future.
+  }
+
+  // ── Forgot Password ──────────────────────────────────────────────────
+  /// Send a password reset email via Firebase (for email/password accounts).
+  Future<AuthResult> forgotPassword(String email) async {
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(email: email);
+      return AuthResult.success(null, null,
+          message: 'Link reset password telah dikirim ke $email');
+    } on FirebaseAuthException catch (e) {
+      return AuthResult.failure(_firebaseErrorMessage(e.code));
+    } catch (e) {
+      return AuthResult.failure('Terjadi kesalahan: ${e.toString()}');
     }
   }
 
-  /// Simulate logout.
-  Future<void> logout() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    _currentUser = null;
-    _token = null;
+  // ── Helpers ───────────────────────────────────────────────────────────
+  /// Convert a Firebase [User] to a [UserModel].
+  UserModel _userModelFromFirebase(User user) {
+    return UserModel(
+      id: user.uid,
+      name: user.displayName ?? 'Pemancing',
+      username: _generateUsername(user.displayName ?? user.email ?? 'user'),
+      email: user.email ?? '',
+      avatar: user.photoURL,
+      createdAt: user.metadata.creationTime ?? DateTime.now(),
+    );
+  }
+
+  /// Generate a username from name/email.
+  String _generateUsername(String input) {
+    return input
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+  }
+
+  /// Map Firebase error codes to user-friendly Indonesian messages.
+  String _firebaseErrorMessage(String code) {
+    switch (code) {
+      case 'account-exists-with-different-credential':
+        return 'Akun sudah ada dengan metode login lain';
+      case 'invalid-credential':
+        return 'Kredensial tidak valid';
+      case 'operation-not-allowed':
+        return 'Metode login ini belum diaktifkan';
+      case 'user-disabled':
+        return 'Akun ini telah dinonaktifkan';
+      case 'user-not-found':
+        return 'Pengguna tidak ditemukan';
+      case 'wrong-password':
+        return 'Password salah';
+      case 'invalid-email':
+        return 'Format email tidak valid';
+      case 'email-already-in-use':
+        return 'Email sudah digunakan akun lain';
+      case 'network-request-failed':
+        return 'Koneksi jaringan bermasalah';
+      default:
+        return 'Terjadi kesalahan ($code)';
+    }
   }
 }
 
@@ -133,6 +196,7 @@ class AuthResult {
   final String? token;
   final String? errorMessage;
   final String? message;
+  final bool isNewUser;
 
   const AuthResult._({
     required this.isSuccess,
@@ -140,14 +204,21 @@ class AuthResult {
     this.token,
     this.errorMessage,
     this.message,
+    this.isNewUser = false,
   });
 
-  factory AuthResult.success(UserModel? user, String? token, {String? message}) {
+  factory AuthResult.success(
+    UserModel? user,
+    String? token, {
+    String? message,
+    bool isNewUser = false,
+  }) {
     return AuthResult._(
       isSuccess: true,
       user: user,
       token: token,
       message: message,
+      isNewUser: isNewUser,
     );
   }
 

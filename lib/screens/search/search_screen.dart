@@ -16,7 +16,8 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderStateMixin {
+class _SearchScreenState extends State<SearchScreen>
+    with SingleTickerProviderStateMixin {
   final _searchController = TextEditingController();
   late TabController _tabController;
 
@@ -41,7 +42,14 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
     return Scaffold(
       appBar: AppBar(
         title: const Text('Cari Teman'),
-        bottom: TabBar(controller: _tabController, tabs: const [Tab(text: 'Rekomendasi'), Tab(text: 'Permintaan'), Tab(text: 'Mengikuti')]),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Rekomendasi'),
+            Tab(text: 'Permintaan'),
+            Tab(text: 'Mengikuti'),
+          ],
+        ),
       ),
       body: Column(
         children: [
@@ -54,10 +62,20 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
                 hintText: 'Cari berdasarkan nama atau username...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(icon: const Icon(Icons.clear), onPressed: () { _searchController.clear(); context.read<SearchProvider>().clearSearch(); setState(() {}); })
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          context.read<SearchProvider>().clearSearch();
+                          setState(() {});
+                        },
+                      )
                     : null,
               ),
-              onChanged: (v) { context.read<SearchProvider>().searchUsers(v); setState(() {}); },
+              onChanged: (v) {
+                context.read<SearchProvider>().searchUsers(v);
+                setState(() {});
+              },
             ),
           ),
           // Filter chips
@@ -70,7 +88,9 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
                     _buildFilterChip('Semua', null, sp),
-                    ...AppConstants.fishingTypes.map((type) => _buildFilterChip(type, type, sp)),
+                    ...AppConstants.fishingTypes.map(
+                      (type) => _buildFilterChip(type, type, sp),
+                    ),
                   ],
                 );
               },
@@ -83,8 +103,16 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
               controller: _tabController,
               children: [
                 _buildRecommendationsTab(),
-                const EmptyState(icon: Icons.group_add, title: 'Tidak ada permintaan', subtitle: 'Permintaan pertemanan akan muncul di sini'),
-                const EmptyState(icon: Icons.people, title: 'Belum mengikuti siapapun', subtitle: 'Cari dan ikuti pemancing lainnya!'),
+                const EmptyState(
+                  icon: Icons.group_add,
+                  title: 'Tidak ada permintaan',
+                  subtitle: 'Permintaan pertemanan akan muncul di sini',
+                ),
+                const EmptyState(
+                  icon: Icons.people,
+                  title: 'Belum mengikuti siapapun',
+                  subtitle: 'Cari dan ikuti pemancing lainnya!',
+                ),
               ],
             ),
           ),
@@ -98,7 +126,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: FilterChip(
-        label: Text(label),
+        label: Text(label, style: const TextStyle(color: AppTheme.primaryBlue)),
         selected: isSelected,
         onSelected: (_) => sp.filterByFishingType(type),
         selectedColor: AppTheme.primaryBlue.withValues(alpha: 0.12),
@@ -110,14 +138,20 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
   Widget _buildRecommendationsTab() {
     return Consumer<SearchProvider>(
       builder: (context, sp, _) {
-        final list = sp.query.isNotEmpty ? sp.searchResults : sp.recommendations;
+        final list = sp.query.isNotEmpty
+            ? sp.searchResults
+            : sp.recommendations;
 
         if (sp.isLoading) return ShimmerLoading.userList();
         if (list.isEmpty) {
           return EmptyState(
             icon: Icons.person_search,
-            title: sp.query.isNotEmpty ? 'Tidak ditemukan' : 'Tidak ada rekomendasi',
-            subtitle: sp.query.isNotEmpty ? 'Coba kata kunci lain' : 'Belum ada pengguna terdaftar',
+            title: sp.query.isNotEmpty
+                ? 'Tidak ditemukan'
+                : 'Tidak ada rekomendasi',
+            subtitle: sp.query.isNotEmpty
+                ? 'Coba kata kunci lain'
+                : 'Belum ada pengguna terdaftar',
           );
         }
 
@@ -129,7 +163,12 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
             final user = list[index];
             return UserCard(
               user: user,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OtherProfileScreen(userId: user.id))),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => OtherProfileScreen(userId: user.id),
+                ),
+              ),
               onFollow: () => sp.toggleFollow(user.id),
             );
           },
