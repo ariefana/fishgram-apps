@@ -88,11 +88,41 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     final result = await _authService.signInWithGoogle();
+    return _handleAuthResult(result);
+  }
 
+  // ── Email/Password Sign-In ────────────────────────────────────────────
+  /// Sign in with email and password. Returns true on success.
+  Future<bool> signInWithEmail(String email, String password) async {
+    _state = AuthState.loading;
+    _errorMessage = null;
+    notifyListeners();
+
+    final result = await _authService.signInWithEmail(email, password);
+    return _handleAuthResult(result);
+  }
+
+  // ── Email/Password Register ───────────────────────────────────────────
+  /// Register a new account with email and password. Returns true on success.
+  Future<bool> registerWithEmail(
+    String name,
+    String email,
+    String password,
+  ) async {
+    _state = AuthState.loading;
+    _errorMessage = null;
+    notifyListeners();
+
+    final result =
+        await _authService.registerWithEmail(name, email, password);
+    return _handleAuthResult(result);
+  }
+
+  /// Shared handler for auth results (Google, email sign-in, register).
+  Future<bool> _handleAuthResult(AuthResult result) async {
     if (result.isSuccess) {
       _user = result.user;
 
-      // Persist
       if (result.token != null) {
         await _storageService.saveToken(result.token!);
       }
@@ -101,7 +131,6 @@ class AuthProvider extends ChangeNotifier {
       }
       await _storageService.setLoggedIn(true);
 
-      // New user → show onboarding, returning user → go to main
       if (result.isNewUser) {
         _state = AuthState.onboarding;
       } else {

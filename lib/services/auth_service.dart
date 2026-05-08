@@ -80,6 +80,65 @@ class AuthService {
     }
   }
 
+  // ── Email/Password Sign-In ────────────────────────────────────────────
+  /// Sign in with email and password via Firebase Auth.
+  Future<AuthResult> signInWithEmail(String email, String password) async {
+    try {
+      final userCredential = await _firebaseAuth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      final user = userCredential.user;
+      if (user == null) {
+        return AuthResult.failure('Gagal mendapatkan data pengguna');
+      }
+      final token = await user.getIdToken();
+      return AuthResult.success(
+        _userModelFromFirebase(user),
+        token,
+        isNewUser: false,
+      );
+    } on FirebaseAuthException catch (e) {
+      return AuthResult.failure(_firebaseErrorMessage(e.code));
+    } catch (e) {
+      return AuthResult.failure('Terjadi kesalahan: ${e.toString()}');
+    }
+  }
+
+  // ── Email/Password Registration ───────────────────────────────────────
+  /// Create a new account with email and password via Firebase Auth.
+  Future<AuthResult> registerWithEmail(
+    String name,
+    String email,
+    String password,
+  ) async {
+    try {
+      final userCredential =
+          await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      final user = userCredential.user;
+      if (user == null) {
+        return AuthResult.failure('Gagal membuat akun');
+      }
+      // Set display name
+      await user.updateDisplayName(name.trim());
+      await user.reload();
+
+      final token = await _firebaseAuth.currentUser?.getIdToken();
+      return AuthResult.success(
+        _userModelFromFirebase(_firebaseAuth.currentUser!),
+        token,
+        isNewUser: true,
+      );
+    } on FirebaseAuthException catch (e) {
+      return AuthResult.failure(_firebaseErrorMessage(e.code));
+    } catch (e) {
+      return AuthResult.failure('Terjadi kesalahan: ${e.toString()}');
+    }
+  }
+
   // ── Token Management ──────────────────────────────────────────────────
   /// Get the current Firebase ID token.
   ///
@@ -181,6 +240,10 @@ class AuthService {
         return 'Format email tidak valid';
       case 'email-already-in-use':
         return 'Email sudah digunakan akun lain';
+      case 'weak-password':
+        return 'Password terlalu lemah, minimal 6 karakter';
+      case 'too-many-requests':
+        return 'Terlalu banyak percobaan, coba lagi nanti';
       case 'network-request-failed':
         return 'Koneksi jaringan bermasalah';
       default:
