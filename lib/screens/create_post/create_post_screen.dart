@@ -3,8 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../config/theme.dart';
 import '../../config/constants.dart';
-import '../../models/catch_model.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/feed_provider.dart';
 import '../../widgets/gradient_button.dart';
 import 'dart:io';
@@ -81,28 +79,26 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 1000)); // simulate upload
 
-    if (!mounted) return;
-    final user = context.read<AuthProvider>().user;
-    final newCatch = CatchModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      userId: user?.id ?? '1',
-      userName: user?.name ?? 'Pengguna',
-      userUsername: user?.username ?? 'user',
-      userAvatar: user?.avatar,
-      photoUrl: AppConstants.catchPhotoUrl(DateTime.now().millisecond),
+    final success = await context.read<FeedProvider>().createCatch(
       fishType: _selectedFishType!,
       weight: double.tryParse(_weightController.text) ?? 0,
       bait: _selectedBait!,
       caption: _captionController.text.trim(),
-      createdAt: DateTime.now(),
+      photo: File(_selectedImage!.path),
     );
 
-    context.read<FeedProvider>().addCatch(newCatch);
     setState(() => _isLoading = false);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tangkapan berhasil dibagikan! 🎣'), backgroundColor: AppTheme.successGreen));
-    Navigator.pop(context);
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tangkapan berhasil dibagikan! 🎣'), backgroundColor: AppTheme.successGreen));
+      Navigator.pop(context);
+    } else {
+      final error = context.read<FeedProvider>().errorMessage ?? 'Gagal membagikan tangkapan';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error), backgroundColor: AppTheme.likeRed));
+    }
   }
 
   @override

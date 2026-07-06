@@ -1,3 +1,5 @@
+import '../config/constants.dart';
+
 /// Notification types in FishGram.
 enum NotificationType { like, comment, follow, friendRequest }
 
@@ -36,9 +38,9 @@ class NotificationModel {
       actorId: json['actor_id'].toString(),
       actorName: json['actor_name'] as String,
       actorUsername: json['actor_username'] as String? ?? '',
-      actorAvatar: json['actor_avatar'] as String?,
+      actorAvatar: AppConstants.processUrl(json['actor_avatar'] as String?),
       referenceId: json['reference_id']?.toString(),
-      referenceImage: json['reference_image'] as String?,
+      referenceImage: AppConstants.processUrl(json['reference_image'] as String?),
       message: json['message'] as String,
       isRead: json['is_read'] as bool? ?? false,
       createdAt: json['created_at'] != null

@@ -1,3 +1,5 @@
+import '../config/constants.dart';
+
 /// Model representing a fishing catch post in FishGram.
 class CatchModel {
   final String id;
@@ -42,8 +44,8 @@ class CatchModel {
       userId: json['user_id'].toString(),
       userName: json['user_name'] as String,
       userUsername: json['user_username'] as String? ?? '',
-      userAvatar: json['user_avatar'] as String?,
-      photoUrl: json['photo_url'] as String,
+      userAvatar: AppConstants.processUrl(json['user_avatar'] as String?),
+      photoUrl: AppConstants.processUrl(json['photo_url'] as String),
       fishType: json['fish_type'] as String,
       weight: (json['weight'] as num).toDouble(),
       bait: json['bait'] as String,

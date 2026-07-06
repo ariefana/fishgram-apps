@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
-import '../services/mock_data_service.dart';
+import '../services/api_service.dart';
 
 /// Provider managing user search and friend discovery.
 class SearchProvider extends ChangeNotifier {
-  final MockDataService _mockDataService;
+  final ApiService _apiService;
 
   List<UserModel> _searchResults = [];
   List<UserModel> _recommendations = [];
@@ -13,8 +13,8 @@ class SearchProvider extends ChangeNotifier {
   String? _selectedFishingType;
   String? _errorMessage;
 
-  SearchProvider({required MockDataService mockDataService})
-      : _mockDataService = mockDataService;
+  SearchProvider({required ApiService apiService})
+      : _apiService = apiService;
 
   // ── Getters ───────────────────────────────────────────────────────────
   List<UserModel> get searchResults => _searchResults;
@@ -24,14 +24,20 @@ class SearchProvider extends ChangeNotifier {
   String? get selectedFishingType => _selectedFishingType;
   String? get errorMessage => _errorMessage;
 
-  // ── Load Recommendations ──────────────────────────────────────────────
+  // ── Load Recommendations (Laravel API) ────────────────────────────────
   Future<void> loadRecommendations() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _recommendations = await _mockDataService.getUsers();
+      final response = await _apiService.get('/users');
+      if (response.isSuccess) {
+        final List<dynamic> list = response.data;
+        _recommendations = list.map((json) => UserModel.fromJson(json)).toList();
+      } else {
+        _errorMessage = response.errorMessage ?? 'Gagal memuat rekomendasi';
+      }
     } catch (e) {
       _errorMessage = 'Gagal memuat rekomendasi: ${e.toString()}';
     }
@@ -40,7 +46,7 @@ class SearchProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Search Users ──────────────────────────────────────────────────────
+  // ── Search Users (Laravel API) ────────────────────────────────────────
   Future<void> searchUsers(String query) async {
     _query = query;
     if (query.isEmpty) {
@@ -54,7 +60,16 @@ class SearchProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _searchResults = await _mockDataService.searchUsers(query);
+      final response = await _apiService.get('/users', queryParams: {
+        'search': query,
+      });
+
+      if (response.isSuccess) {
+        final List<dynamic> list = response.data;
+        _searchResults = list.map((json) => UserModel.fromJson(json)).toList();
+      } else {
+        _errorMessage = response.errorMessage ?? 'Gagal mencari pengguna';
+      }
     } catch (e) {
       _errorMessage = 'Gagal mencari: ${e.toString()}';
     }
@@ -63,17 +78,24 @@ class SearchProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Filter by Fishing Type ────────────────────────────────────────────
+  // ── Filter by Fishing Type (Laravel API) ──────────────────────────────
   Future<void> filterByFishingType(String? type) async {
     _selectedFishingType = type;
     _isLoading = true;
     notifyListeners();
 
     try {
-      if (type == null || type.isEmpty) {
-        _recommendations = await _mockDataService.getUsers();
+      final queryParams = <String, String>{};
+      if (type != null && type.isNotEmpty) {
+        queryParams['fishing_type'] = type;
+      }
+
+      final response = await _apiService.get('/users', queryParams: queryParams);
+      if (response.isSuccess) {
+        final List<dynamic> list = response.data;
+        _recommendations = list.map((json) => UserModel.fromJson(json)).toList();
       } else {
-        _recommendations = await _mockDataService.getUsersByFishingType(type);
+        _errorMessage = response.errorMessage ?? 'Gagal memfilter rekomendasi';
       }
     } catch (e) {
       _errorMessage = 'Gagal memfilter: ${e.toString()}';
@@ -83,18 +105,61 @@ class SearchProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Toggle Follow ─────────────────────────────────────────────────────
-  void toggleFollow(String userId) {
+  // ── Toggle Follow (Laravel API) ───────────────────────────────────────
+  Future<void> toggleFollow(String userId) async {
+    // Optimistic UI Update
     _updateFollowInList(_searchResults, userId);
     _updateFollowInList(_recommendations, userId);
     notifyListeners();
+
+    try {
+      final response = await _apiService.post('/friends/toggle', body: {
+        'user_id': userId,
+      });
+
+      if (response.isSuccess) {
+        final data = response.data;
+        final isFollowing = data['is_following'] as bool;
+        _setFollowInList(_searchResults, userId, isFollowing);
+        _setFollowInList(_recommendations, userId, isFollowing);
+        notifyListeners();
+      } else {
+        // Revert on failure
+        _updateFollowInList(_searchResults, userId);
+        _updateFollowInList(_recommendations, userId);
+        _errorMessage = response.errorMessage ?? 'Gagal memperbarui pertemanan';
+        notifyListeners();
+      }
+    } catch (e) {
+      // Revert on failure
+      _updateFollowInList(_searchResults, userId);
+      _updateFollowInList(_recommendations, userId);
+      _errorMessage = e.toString();
+      notifyListeners();
+    }
   }
 
   void _updateFollowInList(List<UserModel> list, String userId) {
     final index = list.indexWhere((u) => u.id == userId);
     if (index == -1) return;
     final user = list[index];
-    list[index] = user.copyWith(isFollowing: !user.isFollowing);
+    list[index] = user.copyWith(
+      isFollowing: !user.isFollowing,
+      followersCount: user.isFollowing ? user.followersCount - 1 : user.followersCount + 1,
+    );
+  }
+
+  void _setFollowInList(List<UserModel> list, String userId, bool isFollowing) {
+    final index = list.indexWhere((u) => u.id == userId);
+    if (index == -1) return;
+    final user = list[index];
+    // Update count based on actual response if different
+    if (user.isFollowing != isFollowing) {
+      list[index] = user.copyWith(
+        isFollowing: isFollowing,
+        followersCount: isFollowing ? user.followersCount + 1 : user.followersCount - 1,
+      );
+    }
   }
 
   // ── Clear Search ──────────────────────────────────────────────────────

@@ -1,3 +1,5 @@
+import '../config/constants.dart';
+
 /// Model representing a user in FishGram.
 class UserModel {
   final String id;
@@ -36,7 +38,7 @@ class UserModel {
       name: json['name'] as String,
       username: json['username'] as String,
       email: json['email'] as String? ?? '',
-      avatar: json['avatar'] as String?,
+      avatar: AppConstants.processUrl(json['avatar'] as String?),
       bio: json['bio'] as String?,
       fishingType: json['fishing_type'] as String?,
       location: json['location'] as String?,

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../config/constants.dart';
 
@@ -9,7 +10,7 @@ class ApiService {
   final String baseUrl;
   String? _authToken;
 
-  ApiService({this.baseUrl = AppConstants.apiBaseUrl});
+  ApiService({String? baseUrl}) : baseUrl = baseUrl ?? AppConstants.apiBaseUrl;
 
   /// Set the auth token for subsequent requests.
   void setToken(String? token) {
@@ -77,6 +78,42 @@ class ApiService {
     try {
       final uri = Uri.parse('$baseUrl$endpoint');
       final response = await http.delete(uri, headers: _headers);
+      return _handleResponse(response);
+    } catch (e) {
+      return ApiResponse.error('Koneksi gagal: ${e.toString()}');
+    }
+  }
+
+  /// POST request with multipart form data (useful for uploading files).
+  Future<ApiResponse> postMultipart(
+    String endpoint,
+    Map<String, String> fields,
+    File file,
+    String fileParamName,
+  ) async {
+    try {
+      final uri = Uri.parse('$baseUrl$endpoint');
+      final request = http.MultipartRequest('POST', uri);
+
+      // Add headers
+      _headers.forEach((key, value) {
+        if (key != 'Content-Type') {
+          request.headers[key] = value;
+        }
+      });
+
+      // Add form fields
+      request.fields.addAll(fields);
+
+      // Add file
+      final multipartFile = await http.MultipartFile.fromPath(
+        fileParamName,
+        file.path,
+      );
+      request.files.add(multipartFile);
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
       return _handleResponse(response);
     } catch (e) {
       return ApiResponse.error('Koneksi gagal: ${e.toString()}');

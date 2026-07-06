@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
+import '../services/api_service.dart';
 
 /// Authentication state.
 enum AuthState { initial, loading, authenticated, unauthenticated, onboarding }
@@ -12,6 +13,7 @@ enum AuthState { initial, loading, authenticated, unauthenticated, onboarding }
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService;
   final StorageService _storageService;
+  final ApiService _apiService;
 
   AuthState _state = AuthState.initial;
   UserModel? _user;
@@ -22,8 +24,10 @@ class AuthProvider extends ChangeNotifier {
   AuthProvider({
     required AuthService authService,
     required StorageService storageService,
+    required ApiService apiService,
   })  : _authService = authService,
-        _storageService = storageService;
+        _storageService = storageService,
+        _apiService = apiService;
 
   // ── Getters ───────────────────────────────────────────────────────────
   AuthState get state => _state;
@@ -54,6 +58,7 @@ class AuthProvider extends ChangeNotifier {
         // User signed out externally
         _user = null;
         _state = AuthState.unauthenticated;
+        _apiService.setToken(null);
         notifyListeners();
       }
     });
@@ -67,6 +72,7 @@ class AuthProvider extends ChangeNotifier {
       final token = await _authService.getIdToken();
       if (token != null) {
         await _storageService.saveToken(token);
+        _apiService.setToken(token);
       }
       await _storageService.saveUserId(firebaseUser.uid);
       await _storageService.setLoggedIn(true);
@@ -125,6 +131,7 @@ class AuthProvider extends ChangeNotifier {
 
       if (result.token != null) {
         await _storageService.saveToken(result.token!);
+        _apiService.setToken(result.token!);
       }
       if (result.user != null) {
         await _storageService.saveUserId(result.user!.id);
@@ -172,12 +179,24 @@ class AuthProvider extends ChangeNotifier {
     required String fishingType,
     required String location,
   }) async {
+    // Update on Firebase Auth
     await _authService.updateProfile(
       fishingType: fishingType,
       location: location,
     );
-    // Refresh user model from Firebase
-    _user = _authService.currentUser;
+
+    // Sync to Laravel Backend API
+    final response = await _apiService.post('/profile', body: {
+      'fishing_type': fishingType,
+      'location': location,
+    });
+
+    if (response.isSuccess) {
+      _user = UserModel.fromJson(response.data);
+    } else {
+      _user = _authService.currentUser;
+    }
+
     await _storageService.setOnboardingComplete(true);
     _state = AuthState.authenticated;
     notifyListeners();
@@ -190,14 +209,27 @@ class AuthProvider extends ChangeNotifier {
     String? bio,
     String? avatar,
   }) async {
+    // Update on Firebase Auth
     await _authService.updateProfile(
       name: name,
       username: username,
       bio: bio,
       avatar: avatar,
     );
-    // Refresh user model from Firebase
-    _user = _authService.currentUser;
+
+    // Sync to Laravel Backend API
+    final body = <String, dynamic>{};
+    if (name != null) body['name'] = name;
+    if (username != null) body['username'] = username;
+    if (bio != null) body['bio'] = bio;
+    if (avatar != null) body['avatar'] = avatar;
+
+    final response = await _apiService.post('/profile', body: body);
+    if (response.isSuccess) {
+      _user = UserModel.fromJson(response.data);
+    } else {
+      _user = _authService.currentUser;
+    }
     notifyListeners();
   }
 
@@ -209,6 +241,7 @@ class AuthProvider extends ChangeNotifier {
 
     await _authService.signOut();
     await _storageService.clearAll();
+    _apiService.setToken(null);
     _user = null;
     _state = AuthState.unauthenticated;
     notifyListeners();

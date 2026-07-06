@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'app.dart';
 import 'services/auth_service.dart';
-import 'services/mock_data_service.dart';
+import 'services/api_service.dart';
 import 'services/storage_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/feed_provider.dart';
@@ -30,7 +30,7 @@ void main() async {
   if (settings.authorizationStatus == AuthorizationStatus.authorized) {
     print('User granted permission');
     
-    // 2. Ambil Token
+    // 2. Ambil 
     String? token = await messaging.getToken();
     print("Token HP fisik: $token"); // Cek di Debug Console VS Code / Android Studio
   } else {
@@ -38,9 +38,16 @@ void main() async {
   }
 
   // Initialize services
+  final apiService = ApiService();
   final authService = AuthService();
   final storageService = StorageService();
-  final mockDataService = MockDataService();
+
+  // Set initial token if user is already logged in
+  final firebaseUser = authService.firebaseUser;
+  if (firebaseUser != null) {
+    final token = await authService.getIdToken();
+    apiService.setToken(token);
+  }
 
   runApp(
     MultiProvider(
@@ -49,19 +56,20 @@ void main() async {
           create: (_) => AuthProvider(
             authService: authService,
             storageService: storageService,
+            apiService: apiService,
           ),
         ),
         ChangeNotifierProvider(
-          create: (_) => FeedProvider(mockDataService: mockDataService),
+          create: (_) => FeedProvider(apiService: apiService),
         ),
         ChangeNotifierProvider(
-          create: (_) => ProfileProvider(mockDataService: mockDataService),
+          create: (_) => ProfileProvider(apiService: apiService),
         ),
         ChangeNotifierProvider(
-          create: (_) => SearchProvider(mockDataService: mockDataService),
+          create: (_) => SearchProvider(apiService: apiService),
         ),
         ChangeNotifierProvider(
-          create: (_) => NotificationProvider(mockDataService: mockDataService),
+          create: (_) => NotificationProvider(apiService: apiService),
         ),
       ],
       child: const FishGramApp(),

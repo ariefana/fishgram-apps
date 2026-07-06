@@ -1,3 +1,5 @@
+import 'dart:io';
+
 /// App-wide constants for FishGram
 class AppConstants {
   AppConstants._();
@@ -8,7 +10,23 @@ class AppConstants {
   static const String appVersion = '1.0.0';
 
   // ── API ───────────────────────────────────────────────────────────────
-  static const String apiBaseUrl = 'http://localhost:8000/api';
+  static String get apiBaseUrl {
+    if (Platform.isAndroid) {
+      return 'http://192.168.1.6:8000/api';
+    }
+    return 'http://localhost:8000/api';
+  }
+
+  /// Processes network URLs by replacing localhost with the active server IP.
+  static String processUrl(String? url) {
+    if (url == null || url.isEmpty) return '';
+    final serverBase = apiBaseUrl.replaceAll('/api', '');
+    return url
+        .replaceAll('http://localhost:8000', serverBase)
+        .replaceAll('http://127.0.0.1:8000', serverBase)
+        .replaceAll('http://localhost', serverBase)
+        .replaceAll('http://127.0.0.1', serverBase);
+  }
 
   // ── Storage Keys ──────────────────────────────────────────────────────
   static const String tokenKey = 'auth_token';

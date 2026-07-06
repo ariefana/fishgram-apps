@@ -1,3 +1,5 @@
+import '../config/constants.dart';
+
 /// Model representing a comment on a catch post.
 class CommentModel {
   final String id;
@@ -27,7 +29,7 @@ class CommentModel {
       userId: json['user_id'].toString(),
       userName: json['user_name'] as String,
       userUsername: json['user_username'] as String? ?? '',
-      userAvatar: json['user_avatar'] as String?,
+      userAvatar: AppConstants.processUrl(json['user_avatar'] as String?),
       content: json['content'] as String,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
