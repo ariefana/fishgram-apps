@@ -6,7 +6,6 @@ import '../../config/theme.dart';
 import '../../models/catch_model.dart';
 import '../../models/comment_model.dart';
 import '../../providers/feed_provider.dart';
-import '../../services/mock_data_service.dart';
 import '../../widgets/comment_tile.dart';
 import 'package:ionicons/ionicons.dart';
 
@@ -31,8 +30,7 @@ class _CatchDetailScreenState extends State<CatchDetailScreen> {
   }
 
   Future<void> _loadComments() async {
-    final mockService = MockDataService();
-    final comments = await mockService.getComments(widget.catchId);
+    final comments = await context.read<FeedProvider>().fetchComments(widget.catchId);
     if (mounted) {
       setState(() {
         _comments = comments;
@@ -269,15 +267,37 @@ class _CatchDetailScreenState extends State<CatchDetailScreen> {
                           Icons.send,
                           color: AppTheme.primaryBlue,
                         ),
-                        onPressed: () {
-                          if (_commentController.text.trim().isEmpty) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Komentar terkirim!'),
-                              backgroundColor: AppTheme.successGreen,
-                            ),
-                          );
+                        onPressed: () async {
+                          final content = _commentController.text.trim();
+                          if (content.isEmpty) return;
+
                           _commentController.clear();
+
+                          final newComment = await context.read<FeedProvider>().postComment(
+                            widget.catchId,
+                            content,
+                          );
+
+                          if (!context.mounted) return;
+
+                          if (newComment != null) {
+                            setState(() {
+                              _comments.add(newComment);
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Komentar berhasil diposting!'),
+                                backgroundColor: AppTheme.successGreen,
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Gagal mengirim komentar'),
+                                backgroundColor: AppTheme.likeRed,
+                              ),
+                            );
+                          }
                         },
                       ),
                     ],

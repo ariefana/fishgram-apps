@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/catch_model.dart';
+import '../models/comment_model.dart';
 import '../services/api_service.dart';
 
 /// Provider managing the feed of fishing catch posts.
@@ -192,5 +193,43 @@ class FeedProvider extends ChangeNotifier {
   void addCatch(CatchModel newCatch) {
     _catches.insert(0, newCatch);
     notifyListeners();
+  }
+
+  // ── Comments (Laravel API) ───────────────────────────────────────────
+  Future<List<CommentModel>> fetchComments(String catchId) async {
+    try {
+      final response = await _apiService.get('/catches/$catchId/comments');
+      if (response.isSuccess) {
+        final List<dynamic> list = response.data;
+        return list.map((json) => CommentModel.fromJson(json)).toList();
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<CommentModel?> postComment(String catchId, String content) async {
+    try {
+      final response = await _apiService.post('/catches/$catchId/comments', body: {
+        'content': content,
+      });
+      if (response.isSuccess) {
+        final newComment = CommentModel.fromJson(response.data);
+        
+        // Update local comments count for this catch
+        final index = _catches.indexWhere((c) => c.id == catchId);
+        if (index != -1) {
+          _catches[index] = _catches[index].copyWith(
+            commentsCount: _catches[index].commentsCount + 1,
+          );
+          notifyListeners();
+        }
+        return newComment;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
   }
 }

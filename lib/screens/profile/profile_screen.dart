@@ -111,13 +111,13 @@ class ProfileScreen extends StatelessWidget {
                       if (user.fishingType != null)
                         Chip(
                           avatar: const Icon(Icons.phishing, size: 16),
-                          label: Text(user.fishingType!),
+                          label: Text(user.fishingType!, style: TextStyle(color: Colors.black),),
                           visualDensity: VisualDensity.compact,
                         ),
                       if (user.location != null)
                         Chip(
                           avatar: const Icon(Icons.location_on, size: 16),
-                          label: Text(user.location!),
+                          label: Text(user.location!, style: TextStyle(color: Colors.black)),
                           visualDensity: VisualDensity.compact,
                         ),
                     ],
