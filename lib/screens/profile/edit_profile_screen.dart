@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
@@ -20,6 +22,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _usernameController;
   late TextEditingController _bioController;
   bool _isLoading = false;
+  XFile? _selectedAvatar;
 
   @override
   void initState() {
@@ -38,6 +41,53 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
+  Future<void> _pickAvatar(ImageSource source) async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(
+      source: source,
+      maxWidth: 500,
+      maxHeight: 500,
+      imageQuality: 85,
+    );
+    if (image != null) {
+      setState(() {
+        _selectedAvatar = image;
+      });
+    }
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surfaceWhite,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: AppTheme.primaryBlue),
+              title: const Text('Pilih dari Galeri'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAvatar(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppTheme.primaryBlue),
+              title: const Text('Ambil Foto Baru'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAvatar(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
@@ -45,6 +95,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       name: _nameController.text.trim(),
       username: _usernameController.text.trim(),
       bio: _bioController.text.trim(),
+      avatarFile: _selectedAvatar != null ? File(_selectedAvatar!.path) : null,
     );
     setState(() => _isLoading = false);
     if (!mounted) return;
@@ -71,9 +122,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 name: user?.name ?? '',
                 radius: 50,
                 showEditIcon: true,
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Fitur ganti foto akan menggunakan kamera/galeri')),
-                ),
+                localFile: _selectedAvatar != null ? File(_selectedAvatar!.path) : null,
+                onTap: _showImageSourceSheet,
               ),
               const SizedBox(height: 32),
               CustomTextField(

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
@@ -208,6 +209,7 @@ class AuthProvider extends ChangeNotifier {
     String? username,
     String? bio,
     String? avatar,
+    File? avatarFile,
   }) async {
     // Update on Firebase Auth
     await _authService.updateProfile(
@@ -218,13 +220,29 @@ class AuthProvider extends ChangeNotifier {
     );
 
     // Sync to Laravel Backend API
-    final body = <String, dynamic>{};
-    if (name != null) body['name'] = name;
-    if (username != null) body['username'] = username;
-    if (bio != null) body['bio'] = bio;
-    if (avatar != null) body['avatar'] = avatar;
+    ApiResponse response;
+    if (avatarFile != null) {
+      final fields = <String, String>{};
+      if (name != null) fields['name'] = name;
+      if (username != null) fields['username'] = username;
+      if (bio != null) fields['bio'] = bio;
 
-    final response = await _apiService.post('/profile', body: body);
+      response = await _apiService.postMultipart(
+        '/profile',
+        fields,
+        avatarFile,
+        'avatar',
+      );
+    } else {
+      final body = <String, dynamic>{};
+      if (name != null) body['name'] = name;
+      if (username != null) body['username'] = username;
+      if (bio != null) body['bio'] = bio;
+      if (avatar != null) body['avatar'] = avatar;
+
+      response = await _apiService.post('/profile', body: body);
+    }
+
     if (response.isSuccess) {
       _user = UserModel.fromJson(response.data);
     } else {

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../config/theme.dart';
@@ -9,6 +10,7 @@ class AvatarWidget extends StatelessWidget {
   final double radius;
   final VoidCallback? onTap;
   final bool showEditIcon;
+  final File? localFile;
 
   const AvatarWidget({
     super.key,
@@ -17,6 +19,7 @@ class AvatarWidget extends StatelessWidget {
     this.radius = 24,
     this.onTap,
     this.showEditIcon = false,
+    this.localFile,
   });
 
   @override
@@ -28,19 +31,28 @@ class AvatarWidget extends StatelessWidget {
           CircleAvatar(
             radius: radius,
             backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
-            child: imageUrl != null && imageUrl!.isNotEmpty
+            child: localFile != null
                 ? ClipOval(
-                    child: CachedNetworkImage(
-                      imageUrl: imageUrl!,
+                    child: Image.file(
+                      localFile!,
                       width: radius * 2,
                       height: radius * 2,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => _buildPlaceholder(),
-                      errorWidget: (context, url, error) =>
-                          _buildPlaceholder(),
                     ),
                   )
-                : _buildPlaceholder(),
+                : imageUrl != null && imageUrl!.isNotEmpty
+                    ? ClipOval(
+                        child: CachedNetworkImage(
+                          imageUrl: imageUrl!,
+                          width: radius * 2,
+                          height: radius * 2,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => _buildPlaceholder(),
+                          errorWidget: (context, url, error) =>
+                              _buildPlaceholder(),
+                        ),
+                      )
+                    : _buildPlaceholder(),
           ),
           if (showEditIcon)
             Positioned(
