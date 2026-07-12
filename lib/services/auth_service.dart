@@ -124,6 +124,7 @@ class AuthService {
       }
       // Set display name
       await user.updateDisplayName(name.trim());
+      await user.sendEmailVerification();
       await user.reload();
 
       final token = await _firebaseAuth.currentUser?.getIdToken();

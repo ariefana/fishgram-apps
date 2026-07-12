@@ -8,7 +8,7 @@ import '../services/storage_service.dart';
 import '../services/api_service.dart';
 
 /// Authentication state.
-enum AuthState { initial, loading, authenticated, unauthenticated, onboarding }
+enum AuthState { initial, loading, authenticated, unauthenticated, onboarding, unverified }
 
 /// Provider managing authentication state with Firebase Auth + Google Sign-In.
 class AuthProvider extends ChangeNotifier {
@@ -78,9 +78,29 @@ class AuthProvider extends ChangeNotifier {
       await _storageService.saveUserId(firebaseUser.uid);
       await _storageService.setLoggedIn(true);
 
-      // Check if onboarding was completed
-      final onboardingDone = await _storageService.isOnboardingComplete();
-      _state = onboardingDone ? AuthState.authenticated : AuthState.onboarding;
+      if (!firebaseUser.emailVerified) {
+        _state = AuthState.unverified;
+      } else {
+        try {
+          final response = await _apiService.get('/profile');
+          if (response.isSuccess) {
+            _user = UserModel.fromJson(response.data);
+            if (_user?.fishingType != null && _user?.location != null) {
+              await _storageService.setOnboardingComplete(true);
+              _state = AuthState.authenticated;
+            } else {
+              await _storageService.setOnboardingComplete(false);
+              _state = AuthState.onboarding;
+            }
+          } else {
+            final onboardingDone = await _storageService.isOnboardingComplete();
+            _state = onboardingDone ? AuthState.authenticated : AuthState.onboarding;
+          }
+        } catch (_) {
+          final onboardingDone = await _storageService.isOnboardingComplete();
+          _state = onboardingDone ? AuthState.authenticated : AuthState.onboarding;
+        }
+      }
     } else {
       _state = AuthState.unauthenticated;
     }
@@ -139,12 +159,37 @@ class AuthProvider extends ChangeNotifier {
       }
       await _storageService.setLoggedIn(true);
 
-      if (result.isNewUser) {
-        _state = AuthState.onboarding;
+      final firebaseUser = _authService.firebaseUser;
+      if (firebaseUser != null && !firebaseUser.emailVerified) {
+        _state = AuthState.unverified;
       } else {
-        final onboardingDone = await _storageService.isOnboardingComplete();
-        _state =
-            onboardingDone ? AuthState.authenticated : AuthState.onboarding;
+        try {
+          final response = await _apiService.get('/profile');
+          if (response.isSuccess) {
+            _user = UserModel.fromJson(response.data);
+            if (_user?.fishingType != null && _user?.location != null) {
+              await _storageService.setOnboardingComplete(true);
+              _state = AuthState.authenticated;
+            } else {
+              await _storageService.setOnboardingComplete(false);
+              _state = AuthState.onboarding;
+            }
+          } else {
+            if (result.isNewUser) {
+              _state = AuthState.onboarding;
+            } else {
+              final onboardingDone = await _storageService.isOnboardingComplete();
+              _state = onboardingDone ? AuthState.authenticated : AuthState.onboarding;
+            }
+          }
+        } catch (_) {
+          if (result.isNewUser) {
+            _state = AuthState.onboarding;
+          } else {
+            final onboardingDone = await _storageService.isOnboardingComplete();
+            _state = onboardingDone ? AuthState.authenticated : AuthState.onboarding;
+          }
+        }
       }
       notifyListeners();
       return true;
@@ -249,6 +294,32 @@ class AuthProvider extends ChangeNotifier {
       _user = _authService.currentUser;
     }
     notifyListeners();
+  }
+
+  // ── Email Verification ────────────────────────────────────────────────
+  /// Force-reloads user credentials and checks if email has been verified.
+  Future<bool> checkEmailVerified() async {
+    final firebaseUser = _authService.firebaseUser;
+    if (firebaseUser != null) {
+      await firebaseUser.reload();
+      final updatedUser = _authService.firebaseUser;
+      if (updatedUser != null && updatedUser.emailVerified) {
+        final onboardingDone = await _storageService.isOnboardingComplete();
+        _state = onboardingDone ? AuthState.authenticated : AuthState.onboarding;
+        _user = _authService.currentUser;
+        notifyListeners();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Sends a new verification link to the user's email address.
+  Future<void> resendVerificationEmail() async {
+    final firebaseUser = _authService.firebaseUser;
+    if (firebaseUser != null && !firebaseUser.emailVerified) {
+      await firebaseUser.sendEmailVerification();
+    }
   }
 
   // ── Logout ────────────────────────────────────────────────────────────

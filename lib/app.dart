@@ -8,6 +8,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/auth/forgot_password_screen.dart';
 import 'screens/auth/onboarding_screen.dart';
+import 'screens/auth/verify_email_screen.dart';
 import 'screens/main/main_screen.dart';
 
 /// Root widget that listens to auth state and shows appropriate screen.
@@ -25,6 +26,7 @@ class FishGramApp extends StatelessWidget {
         '/register': (_) => const RegisterScreen(),
         '/forgot-password': (_) => const ForgotPasswordScreen(),
         '/onboarding': (_) => const OnboardingScreen(),
+        '/verify-email': (_) => const VerifyEmailScreen(),
         '/main': (_) => const MainScreen(),
       },
       home: Consumer<AuthProvider>(
@@ -35,6 +37,8 @@ class FishGramApp extends StatelessWidget {
               return const SplashScreen();
             case AuthState.unauthenticated:
               return const LoginScreen();
+            case AuthState.unverified:
+              return const VerifyEmailScreen();
             case AuthState.onboarding:
               return const OnboardingScreen();
             case AuthState.authenticated:

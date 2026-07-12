@@ -50,7 +50,7 @@ class NotificationTile extends StatelessWidget {
               ),
             ),
             if (notification.referenceImage != null) ...[
-              const SizedBox(width: 10),
+              const SizedBox(width: 5),
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: CachedNetworkImage(imageUrl: notification.referenceImage!, width: 48, height: 48, fit: BoxFit.cover),
