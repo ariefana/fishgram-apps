@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/avatar_widget.dart';
+import '../../widgets/custom_text_field.dart';
 
 /// Settings screen with account info, preferences, and logout.
 class SettingsScreen extends StatelessWidget {
@@ -10,7 +11,8 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().user;
+    final auth = context.watch<AuthProvider>();
+    final user = auth.user;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Pengaturan')),
@@ -62,15 +64,20 @@ class SettingsScreen extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: AppTheme.accentGreen.withValues(alpha: 0.1),
+                            color: (auth.isGoogleUser
+                                    ? AppTheme.accentGreen
+                                    : AppTheme.primaryBlue)
+                                .withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text(
-                            'Google Account',
+                          child: Text(
+                            auth.isGoogleUser ? 'Google Account' : 'Email Account',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.accentGreen,
+                              color: auth.isGoogleUser
+                                  ? AppTheme.accentGreen
+                                  : AppTheme.primaryBlue,
                             ),
                           ),
                         ),
@@ -86,14 +93,25 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.email_outlined,
             title: 'Ubah Email',
             subtitle: user?.email ?? 'Tidak tersedia',
-            onTap: () => _showSnack(context, 'Fitur ubah email (Firebase)'),
+            onTap: () {
+              if (auth.isGoogleUser) {
+                _showGoogleUserWarning(context, 'mengubah email');
+              } else {
+                _showChangeEmailDialog(context);
+              }
+            },
           ),
           _SettingsTile(
             icon: Icons.lock_outlined,
             title: 'Ubah Password',
             subtitle: 'Verifikasi via Firebase',
-            onTap: () =>
-                _showSnack(context, 'Fitur ubah password (Firebase)'),
+            onTap: () {
+              if (auth.isGoogleUser) {
+                _showGoogleUserWarning(context, 'mengubah kata sandi');
+              } else {
+                _showChangePasswordDialog(context);
+              }
+            },
           ),
           const Divider(),
 
@@ -165,9 +183,256 @@ class SettingsScreen extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  void _showGoogleUserWarning(BuildContext context, String actionName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Akun Terhubung Google'),
+        content: Text(
+          'Akun Anda terhubung langsung dengan Google. '
+          'Untuk $actionName, silakan lakukan langsung dari pengaturan akun Google Anda.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Mengerti'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showChangeEmailDialog(BuildContext context) {
+    final passwordController = TextEditingController();
+    final emailController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        bool isLoading = false;
+        String? dialogError;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('Ubah Alamat Email'),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (dialogError != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.likeRed.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          dialogError!,
+                          style: const TextStyle(color: AppTheme.likeRed, fontSize: 12),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    CustomTextField(
+                      controller: passwordController,
+                      labelText: 'Kata Sandi Saat Ini',
+                      prefixIcon: Icons.lock_outlined,
+                      obscureText: true,
+                      validator: (v) => v == null || v.isEmpty ? 'Masukkan kata sandi saat ini' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    CustomTextField(
+                      controller: emailController,
+                      labelText: 'Email Baru',
+                      prefixIcon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Masukkan email baru';
+                        if (!v.contains('@') || !v.contains('.')) return 'Format email tidak valid';
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading ? null : () => Navigator.pop(ctx),
+                  child: const Text('Batal'),
+                ),
+                TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setDialogState(() {
+                            isLoading = true;
+                            dialogError = null;
+                          });
+
+                          final error = await context.read<AuthProvider>().changeEmail(
+                                currentPassword: passwordController.text,
+                                newEmail: emailController.text.trim(),
+                              );
+
+                          if (!context.mounted) return;
+
+                          if (error != null) {
+                            setDialogState(() {
+                              isLoading = false;
+                              dialogError = error;
+                            });
+                          } else {
+                            Navigator.pop(ctx);
+                            _showSnack(context, 'Email berhasil diperbarui!');
+                          }
+                        },
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Simpan'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showChangePasswordDialog(BuildContext context) {
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        bool isLoading = false;
+        String? dialogError;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('Ubah Kata Sandi'),
+              content: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (dialogError != null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.likeRed.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            dialogError!,
+                            style: const TextStyle(color: AppTheme.likeRed, fontSize: 12),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      CustomTextField(
+                        controller: currentPasswordController,
+                        labelText: 'Kata Sandi Saat Ini',
+                        prefixIcon: Icons.lock_outlined,
+                        obscureText: true,
+                        validator: (v) => v == null || v.isEmpty ? 'Masukkan kata sandi saat ini' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      CustomTextField(
+                        controller: newPasswordController,
+                        labelText: 'Kata Sandi Baru',
+                        prefixIcon: Icons.vpn_key_outlined,
+                        obscureText: true,
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Masukkan kata sandi baru';
+                          if (v.length < 6) return 'Minimal 6 karakter';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      CustomTextField(
+                        controller: confirmPasswordController,
+                        labelText: 'Konfirmasi Kata Sandi Baru',
+                        prefixIcon: Icons.check_circle_outline,
+                        obscureText: true,
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Konfirmasi kata sandi baru';
+                          if (v != newPasswordController.text) return 'Kata sandi baru tidak cocok';
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading ? null : () => Navigator.pop(ctx),
+                  child: const Text('Batal'),
+                ),
+                TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setDialogState(() {
+                            isLoading = true;
+                            dialogError = null;
+                          });
+
+                          final error = await context.read<AuthProvider>().changePassword(
+                                currentPassword: currentPasswordController.text,
+                                newPassword: newPasswordController.text,
+                              );
+
+                          if (!context.mounted) return;
+
+                          if (error != null) {
+                            setDialogState(() {
+                              isLoading = false;
+                              dialogError = error;
+                            });
+                          } else {
+                            Navigator.pop(ctx);
+                            _showSnack(context, 'Kata sandi berhasil diperbarui!');
+                          }
+                        },
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Simpan'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   /// Show logout confirmation dialog.
-  ///
-  /// Performs both Google Sign-Out and Firebase Sign-Out via AuthProvider.
   void _confirmLogout(BuildContext context) {
     showDialog(
       context: context,
@@ -186,10 +451,6 @@ class SettingsScreen extends StatelessWidget {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              // This calls AuthService.signOut() which does:
-              // 1. GoogleSignIn.signOut() — clears Google session
-              // 2. FirebaseAuth.signOut() — clears Firebase session
-              // Then clears SharedPreferences
               context.read<AuthProvider>().logout();
             },
             child: const Text(

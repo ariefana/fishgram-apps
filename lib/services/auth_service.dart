@@ -200,6 +200,40 @@ class AuthService {
     }
   }
 
+  // ── Reauthenticate & Update Sensitive Credentials ────────────────────
+  /// Reauthenticate the current user using their password.
+  Future<bool> reauthenticate(String password) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null || user.email == null) return false;
+    try {
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: password,
+      );
+      await user.reauthenticateWithCredential(credential);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Update the current user's email address in Firebase.
+  Future<void> updateEmail(String newEmail) async {
+    final user = _firebaseAuth.currentUser;
+    if (user != null) {
+      await user.verifyBeforeUpdateEmail(newEmail.trim());
+    }
+  }
+
+  /// Update the current user's password in Firebase.
+  Future<void> updatePassword(String newPassword) async {
+    final user = _firebaseAuth.currentUser;
+    if (user != null) {
+      await user.updatePassword(newPassword);
+      await user.reload();
+    }
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────
   /// Convert a Firebase [User] to a [UserModel].
   UserModel _userModelFromFirebase(User user) {

@@ -12,7 +12,7 @@ class AppConstants {
   // ── API ───────────────────────────────────────────────────────────────
   static String get apiBaseUrl {
     if (Platform.isAndroid) {
-      return 'http://192.168.1.16:8000/api';
+      return 'http://192.168.1.8:8000/api';
     }
     return 'http://localhost:8000/api';
   }

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
@@ -100,6 +101,7 @@ class AuthProvider extends ChangeNotifier {
           final onboardingDone = await _storageService.isOnboardingComplete();
           _state = onboardingDone ? AuthState.authenticated : AuthState.onboarding;
         }
+        syncFcmToken();
       }
     } else {
       _state = AuthState.unauthenticated;
@@ -190,6 +192,7 @@ class AuthProvider extends ChangeNotifier {
             _state = onboardingDone ? AuthState.authenticated : AuthState.onboarding;
           }
         }
+        syncFcmToken();
       }
       notifyListeners();
       return true;
@@ -322,6 +325,71 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Check if the user is logged in via Google.
+  bool get isGoogleUser {
+    final firebaseUser = _authService.firebaseUser;
+    return firebaseUser?.providerData.any((p) => p.providerId == 'google.com') ?? false;
+  }
+
+  /// Reauthenticates and updates the user's email in both Firebase and Laravel backend.
+  Future<String?> changeEmail({
+    required String currentPassword,
+    required String newEmail,
+  }) async {
+    try {
+      // 1. Reauthenticate in Firebase Auth
+      final reauthSuccess = await _authService.reauthenticate(currentPassword);
+      if (!reauthSuccess) {
+        return 'Kata sandi saat ini salah atau terjadi kesalahan reautentikasi.';
+      }
+
+      // 2. Update email in Firebase Auth
+      await _authService.updateEmail(newEmail);
+
+      // 3. Sync token and get new token because email change might refresh token
+      final token = await _authService.getIdToken();
+      if (token != null) {
+        await _storageService.saveToken(token);
+        _apiService.setToken(token);
+      }
+
+      // 4. Update email in Laravel backend
+      final response = await _apiService.post('/profile', body: {
+        'email': newEmail.trim(),
+      });
+
+      if (response.isSuccess) {
+        _user = UserModel.fromJson(response.data);
+        notifyListeners();
+        return null; // success
+      } else {
+        return response.errorMessage ?? 'Gagal memperbarui email di database backend.';
+      }
+    } catch (e) {
+      return 'Gagal memperbarui email: ${e.toString()}';
+    }
+  }
+
+  /// Reauthenticates and updates the user's password in Firebase.
+  Future<String?> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      // 1. Reauthenticate in Firebase Auth
+      final reauthSuccess = await _authService.reauthenticate(currentPassword);
+      if (!reauthSuccess) {
+        return 'Kata sandi saat ini salah atau terjadi kesalahan reautentikasi.';
+      }
+
+      // 2. Update password in Firebase Auth
+      await _authService.updatePassword(newPassword);
+      return null; // success
+    } catch (e) {
+      return 'Gagal memperbarui kata sandi: ${e.toString()}';
+    }
+  }
+
   // ── Logout ────────────────────────────────────────────────────────────
   /// Sign out from Google + Firebase, clear local storage.
   Future<void> logout() async {
@@ -334,6 +402,20 @@ class AuthProvider extends ChangeNotifier {
     _user = null;
     _state = AuthState.unauthenticated;
     notifyListeners();
+  }
+
+  /// Retrieves the current device's FCM token and updates it in the Laravel backend.
+  Future<void> syncFcmToken() async {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await _apiService.post('/profile/fcm-token', body: {
+          'fcm_token': token,
+        });
+      }
+    } catch (_) {
+      // Fail silently
+    }
   }
 
   // ── Clear Messages ────────────────────────────────────────────────────
