@@ -451,6 +451,7 @@ class SettingsScreen extends StatelessWidget {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
+              Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
               context.read<AuthProvider>().logout();
             },
             child: const Text(
